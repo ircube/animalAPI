@@ -13,7 +13,9 @@ ns = Namespace('animals', description='Animals operations')
 animal_model = ns.model('Animal', {
     'id': fields.String(readonly=True, description='The animal unique identifier', example='123e4567-e89b-12d3-a456-426614174000'),
     'name': fields.String(required=True, description='The animal name', example='Lion'),
-    'species': fields.String(required=True, description='The animal species', example='Feline'),
+    'description': fields.String(required=True, description='The animal description', example='The king of animals'),
+    'animalClassification': fields.String(required=True, description='The animal animalClassification', example='Feline'),
+    'imageUrl': fields.String(readonly=True, description='the animal image', example='https://images.stockcake.com/public/d/c/0/dc00120b-2150-4708-8718-e461e0686de1_large/neon-alley-cat-stockcake.jpg'),
     'timestamp': fields.String(readonly=True, description='The time the animal was added', example='2025-03-12T13:30:00')
 })
 
@@ -35,6 +37,7 @@ class AnimalList(Resource):
             if not self.__check_existing_animal_name(animals, new_animal['name']):
                 new_animal['id'] = str(uuid.uuid4())
                 new_animal['timestamp'] = datetime.now().isoformat()
+                new_animal['imageUrl'] = 'https://www.funny-emoticons.com/files/funny-animals/hybrid-animals/664-puggit.png'
                 animals.append(new_animal)
                 return new_animal, 201
             else:
@@ -53,7 +56,8 @@ api.add_namespace(ns)
 
 class AnimalSchema(Schema):
     name = ma_fields.Str(required=True)
-    species = ma_fields.Str(required=True)
+    description = ma_fields.Str(required=True)
+    animalClassification = ma_fields.Str(required=True)
 
 animal_schema = AnimalSchema()
 
