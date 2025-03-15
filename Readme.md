@@ -1,8 +1,8 @@
 
-
 # dev, run
 ```bash
-python animals.ph
+python animals.py
+waitress-serve --listen=*:5000 animals:app
 ```
 
 # deploy
