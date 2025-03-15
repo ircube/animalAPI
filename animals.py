@@ -21,6 +21,7 @@ def allowed_file(filename):
 
 
 ns = Namespace('animals', description='Animals operations')
+# ns2 = Namespace('User', description='whatever')
 
 # Define the model for API documentation
 animal_model = ns.model('Animal', {
