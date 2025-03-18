@@ -5,6 +5,12 @@ from flask import Flask, request, send_from_directory
 from flask_restx import Resource, Api, fields, Namespace
 from werkzeug.utils import secure_filename
 from marshmallow import Schema, fields as ma_fields
+import redis
+
+REDIS_URL = os.getenv("HEROKU_REDIS_ROSE_URL", "redis://localhost:6380")
+redis_client = redis.StrictRedis.from_url(REDIS_URL, decode_responses=True)
+print(f"Redis URL: {REDIS_URL}")
+
 
 app = Flask(__name__)
 api = Api(app, version='1.0', title='Animals API', description='Simple Animals API')
@@ -21,7 +27,6 @@ def allowed_file(filename):
 
 
 ns = Namespace('animals', description='Animals operations')
-# ns2 = Namespace('User', description='whatever')
 
 # Define the model for API documentation
 animal_model = ns.model('Animal', {
@@ -40,14 +45,17 @@ upload_parser.add_argument('description', type=str, location='form', required=Tr
 upload_parser.add_argument('animalClassification', type=str, location='form', required=True, help='The animal classification')
 upload_parser.add_argument('imageUrl', type='file', location='files', required=False, help='The animal image')
 
-animals = []
-
 @ns.route('/')
 class AnimalList(Resource):
     @ns.doc('list_animals')
     @ns.marshal_list_with(animal_model)
     def get(self):
-        return animals
+        all_animals = []
+        for key in redis_client.keys('animal:*'):
+            animal_data = redis_client.hgetall(key)
+            all_animals.append(animal_data)
+        all_animals.sort(key=lambda x: x['timestamp'], reverse=True)
+        return all_animals
 
     @ns.doc('create_animal')
     @ns.expect(upload_parser)  # Use the parser here
@@ -75,10 +83,10 @@ class AnimalList(Resource):
             "id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat()
         })
-        if self.__check_existing_animal_name(animals, name):
+        if self.__check_existing_animal_name(self.get(), name):
             ns.abort(409, f"'{new_animal['name']}' already exists.")
         else :
-            animals.append(new_animal)
+            redis_client.hmset(f"animal:{new_animal['id']}", new_animal)
             return new_animal, 200
 
     def __check_existing_animal_name(self, animal_list, animal_name):
