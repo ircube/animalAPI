@@ -8,7 +8,7 @@ from marshmallow import Schema, fields as ma_fields
 
 import redis
 
-REDIS_URL = os.getenv("HEROKU_REDIS", "redis://localhost:6380")
+REDIS_URL = os.getenv("HEROKU_REDIS", "redis://localhost:6379")
 
 redis_client = redis.StrictRedis.from_url(
     REDIS_URL, 
