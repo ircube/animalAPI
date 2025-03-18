@@ -5,10 +5,16 @@ from flask import Flask, request, send_from_directory
 from flask_restx import Resource, Api, fields, Namespace
 from werkzeug.utils import secure_filename
 from marshmallow import Schema, fields as ma_fields
+
 import redis
 
-REDIS_URL = os.getenv("HEROKU_REDIS_ROSE_URL", "redis://localhost:6380")
-redis_client = redis.StrictRedis.from_url(REDIS_URL, decode_responses=True)
+REDIS_URL = os.getenv("HEROKU_REDIS", "redis://localhost:6380")
+
+redis_client = redis.StrictRedis.from_url(
+    REDIS_URL, 
+    decode_responses=True
+)
+
 print(f"Redis URL: {REDIS_URL}")
 
 
@@ -112,5 +118,5 @@ class AnimalSchema(Schema):
 animal_schema = AnimalSchema()
 
 if __name__ == '__main__':
-    # app.run(host='0.0.0.0', port=5000, debug=True)
-    app.run(debug=False)
+    app.run(host='0.0.0.0', port=5000, debug=True)
+    # app.run(debug=False)
