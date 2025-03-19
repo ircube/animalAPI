@@ -1,22 +1,26 @@
 import os
+from urllib.parse import urlparse
 import uuid
 from datetime import datetime
 from flask import Flask, request, send_from_directory
 from flask_restx import Resource, Api, fields, Namespace
 from werkzeug.utils import secure_filename
 from marshmallow import Schema, fields as ma_fields
-
 import redis
+from dotenv import load_dotenv
 
-REDIS_URL = os.getenv("HEROKU_REDIS", "redis://localhost:6379")
+load_dotenv()
 
-redis_client = redis.StrictRedis.from_url(
-    REDIS_URL, 
-    decode_responses=True
+redis_url = urlparse(os.environ.get("REDIS_URL"))
+
+redis_client = redis.Redis(
+    host=redis_url.hostname, 
+    port=redis_url.port,
+    password=redis_url.password,
+    decode_responses=True,
+    ssl=(redis_url.scheme == "rediss"), 
+    ssl_cert_reqs=None
 )
-
-print(f"Redis URL: {REDIS_URL}")
-
 
 app = Flask(__name__)
 api = Api(app, version='1.0', title='Animals API', description='Simple Animals API')
@@ -56,12 +60,7 @@ class AnimalList(Resource):
     @ns.doc('list_animals')
     @ns.marshal_list_with(animal_model)
     def get(self):
-        all_animals = []
-        for key in redis_client.keys('animal:*'):
-            animal_data = redis_client.hgetall(key)
-            all_animals.append(animal_data)
-        all_animals.sort(key=lambda x: x['timestamp'], reverse=True)
-        return all_animals
+        return self.__getAnimals()
 
     @ns.doc('create_animal')
     @ns.expect(upload_parser)  # Use the parser here
@@ -89,11 +88,20 @@ class AnimalList(Resource):
             "id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat()
         })
-        if self.__check_existing_animal_name(self.get(), name):
+
+        if self.__check_existing_animal_name( self.__getAnimals(), name):
             ns.abort(409, f"'{new_animal['name']}' already exists.")
         else :
             redis_client.hmset(f"animal:{new_animal['id']}", new_animal)
             return new_animal, 200
+
+    def __getAnimals(self):
+        all_animals = []
+        for key in redis_client.keys('animal:*'):
+            animal_data = redis_client.hgetall(key)
+            all_animals.append(animal_data)
+        all_animals.sort(key=lambda x: x['timestamp'], reverse=True)
+        return all_animals
 
     def __check_existing_animal_name(self, animal_list, animal_name):
         for animal in animal_list:
@@ -118,5 +126,7 @@ class AnimalSchema(Schema):
 animal_schema = AnimalSchema()
 
 if __name__ == '__main__':
-    # app.run(host='0.0.0.0', port=5000, debug=True)
-    app.run(debug=False)
+    if os.environ.get("FLASK_ENV")=="DEV":
+        app.run(host='0.0.0.0', port=5000, debug=True)
+    else :
+        app.run(debug=False)
